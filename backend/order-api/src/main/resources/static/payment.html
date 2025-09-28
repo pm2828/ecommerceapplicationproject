@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Razorpay Payment</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+<h2>Pay Now</h2>
+<button id="pay-button">Pay Now</button>
+
+<script>
+    async function createOrder() {
+        // Prepare PurchaseDTO payload
+        const payload = {
+            customer: {
+                name: "Test User",
+                email: "test@example.com",
+                phno: "9999999999"
+            },
+            address: {
+                houseno: "123",
+                street: "Main Street",
+                city: "City",
+                state: "State",
+                zipCode: "123456",
+                country: "Country"
+            },
+            order: {
+                totalquantity: 1,
+                totalprice: 500
+            },
+            orderItems: [
+                {
+                    prodname: "Product 1",
+                    quantity: 1,
+                    unitPrice: 500,
+                    imageUrl: "https://via.placeholder.com/150"
+                }
+            ]
+        };
+
+        const res = await fetch('http://localhost:8080/api/orders/create-order', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        return res.json(); // returns OrderResponse with razorpayOrderId
+    }
+
+    document.getElementById('pay-button').onclick = async function(e) {
+        e.preventDefault();
+
+        const orderResponse = await createOrder(); // create order
+        console.log("Order Response:", orderResponse);
+
+        var options = {
+            "key": "rzp_test_RLPyiQiCVLqHu5", // Razorpay key
+            "amount": orderResponse.amount, // amount in paise from backend
+            "currency": "INR",
+            "name": "Test Shop",
+            "description": "Test Order",
+            "order_id": orderResponse.razorpayOrderId, // from backend
+            "handler": async function (response){
+                console.log("Payment response:", response);
+
+                // Send payment details to backend for verification
+                const verifyRes = await fetch('http://localhost:8080/api/orders/payment-verification', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(response)
+                });
+
+                const result = await verifyRes.json();
+                if(result) alert("Payment successful and verified!");
+                else alert("Payment verification failed!");
+            },
+            "prefill": {
+                "name": "Test User",
+                "email": "test@example.com",
+                "contact": "9999999999"
+            },
+            "theme": {
+                "color": "#F37254"
+            }
+        };
+
+        var rzp = new Razorpay(options);
+        rzp.open();
+    }
+</script>
+</body>
+</html>
